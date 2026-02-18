@@ -1,0 +1,26 @@
+{
+  "name": "bikeworld",
+  "version": "1.0.0",
+  "description": "Bike Hub - Premium bike rental and service booking system with M-Pesa payments",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "express": "^4.18.2",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "bike",
+    "rental",
+    "mpesa",
+    "payment"
+  ],
+  "author": "Bike Hub",
+  "license": "MIT"
+}

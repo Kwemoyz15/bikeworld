@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Cancelled | Bike Hub 🚴‍♂️</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚴</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50">
+    <nav class="p-6 bg-white shadow flex justify-between items-center">
+        <h1 class="text-2xl font-black italic">BIKE HUB</h1>
+        <div class="space-x-6 font-semibold">
+            <a href="index.html">Home</a>
+            <a href="#shop">Shop</a>
+            <a href="#services">Repairs & Training</a>
+        </div>
+    </nav>
+
+    <section class="py-20 text-center">
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-red-100 border-2 border-red-500 rounded-xl p-8">
+                <svg class="w-16 h-16 text-red-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                <h2 class="text-3xl font-bold text-red-800 mb-4">Payment Cancelled</h2>
+                <p class="text-lg text-gray-700 mb-6">Your payment was cancelled. No charges were made to your account.</p>
+                <div class="space-x-4">
+                    <a href="index.html" class="inline-block bg-gray-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-gray-700 transition">
+                        Return to Home
+                    </a>
+                    <button onclick="history.back()" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition">
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="max-w-lg mx-auto mt-16 p-6 bg-white shadow-xl rounded-lg border-2 border-blue-500">
+        <h2 class="text-2xl font-bold mb-6 text-blue-800">Add New Bike to Inventory</h2>
+        <form id="addBikeForm" class="space-y-4">
+            <input type="text" id="name" placeholder="Bike Name (e.g. Trek Domane)" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            <input type="number" id="price" placeholder="Price ($)" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            <input type="text" id="image" placeholder="Image URL" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            <textarea id="desc" placeholder="Description" rows="3" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition">
+                Upload Bike
+            </button>
+        </form>
+    </div>
+
+    <script>
+    document.getElementById('addBikeForm').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        const bikeData = {
+            name: document.getElementById('name').value,
+            price: document.getElementById('price').value,
+            image: document.getElementById('image').value,
+            desc: document.getElementById('desc').value
+        };
+
+        // Validation
+        if (!bikeData.name || !bikeData.price || !bikeData.image || !bikeData.desc) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        try {
+            console.log('Sending bike data:', bikeData);
+            const res = await fetch('/api/add-bike', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bikeData)
+            });
+
+            console.log('Response status:', res.status);
+            console.log('Response ok:', res.ok);
+
+            if (res.ok) {
+                alert('Bike added successfully!');
+                // Clear form
+                document.getElementById('addBikeForm').reset();
+            } else {
+                const errorData = await res.json();
+                console.log('Error data:', errorData);
+                alert('Failed to add bike: ' + (errorData.error || res.statusText || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error adding bike:', error);
+            alert('Failed to add bike: ' + error.message);
+        }
+    };
+    </script>
+</body>
+</html>

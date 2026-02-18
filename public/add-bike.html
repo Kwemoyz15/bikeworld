@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Bike | Bike Hub 🚴‍♂️</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚴</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50">
+    <nav class="p-6 bg-white shadow flex justify-between items-center">
+        <h1 class="text-2xl font-black italic">BIKE HUB</h1>
+        <div class="space-x-6 font-semibold">
+            <a href="index.html">Home</a>
+            <a href="#shop">Shop</a>
+            <a href="#services">Repairs & Training</a>
+        </div>
+    </nav>
+
+    <section class="py-20">
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-white shadow-xl rounded-lg border-4 border-blue-500 p-8">
+                <h2 class="text-3xl font-bold mb-6 text-blue-800">Add New Bike to Inventory</h2>
+                <form id="addBikeForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Bike Name</label>
+                        <input type="text" id="name" placeholder="e.g. Trek Domane" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Price ($)</label>
+                        <input type="number" id="price" placeholder="e.g. 2500" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Image</label>
+                        <div class="space-y-2">
+                            <input type="file" id="imageFile" accept="image/*" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <div class="text-sm text-gray-500">OR</div>
+                            <input type="text" id="image" placeholder="https://images.unsplash.com/photo-..." class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div id="imagePreview" class="mt-2"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea id="desc" placeholder="Describe of bike features..." rows="4" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition">
+                        Upload Bike
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Current Inventory Section -->
+    <section class="py-16 bg-gray-50">
+        <div class="max-w-6xl mx-auto px-10">
+            <h2 class="text-3xl font-bold text-center mb-8 text-blue-800">Current Inventory</h2>
+            <div id="inventory-grid" class="grid md:grid-cols-3 gap-6">
+                <!-- Bikes will be loaded here -->
+            </div>
+        </div>
+    </section>
+
+    <script>
+    // Load current inventory
+    async function loadInventory() {
+        const res = await fetch('/api/bikes');
+        const bikes = await res.json();
+        const inventoryGrid = document.getElementById('inventory-grid');
+        
+        console.log('Loaded bikes:', bikes);
+        console.log('Total bikes:', bikes.length);
+        
+        inventoryGrid.innerHTML = bikes.map((bike, index) => {
+            console.log(`Bike ${index}:`, bike.name, 'Price:', bike.price);
+            return `
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <img src="${bike.image}" alt="${bike.name}" class="w-full h-32 object-cover">
+                <div class="p-4">
+                    <h3 class="text-lg font-bold mb-2">${bike.name}</h3>
+                    <p class="text-gray-600 text-sm mb-3">${bike.desc}</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xl font-bold text-green-600">$${bike.price}</span>
+                        <div class="space-x-2">
+                            <button onclick="deleteBikeByName('${bike.name.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\\n/g, '\\\\n').replace(/\\r/g, '\\\\r')}')" class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
+                                Delete
+                            </button>
+                            <button onclick="testDelete(${index})" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                Test Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        }).join('');
+    }
+
+    // Test function to debug delete
+    async function testDelete(index) {
+        console.log('Testing delete for index:', index);
+        try {
+            const res = await fetch(`/api/bikes/${index}`, {
+                method: 'DELETE'
+            });
+            
+            console.log('Test response status:', res.status);
+            console.log('Test response ok:', res.ok);
+            
+            if (res.ok) {
+                const result = await res.json();
+                console.log('Test response:', result);
+                alert('Test delete successful!');
+                loadInventory();
+            } else {
+                const error = await res.json();
+                console.log('Test error:', error);
+                alert('Test delete failed: ' + (error.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Test delete error:', error);
+            alert('Test delete error: ' + error.message);
+        }
+    }
+
+    // Function to delete a bike by name
+    async function deleteBikeByName(bikeName) {
+        console.log('Attempting to delete bike by name:', bikeName);
+        
+        // Prompt for admin password
+        const password = prompt('Enter admin password to delete this bike:');
+        if (!password) return; // User cancelled
+        
+        if (password !== 'admin123') {
+            alert('Incorrect password. Only owner can delete bikes.');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to delete "${bikeName}"? This action cannot be undone.`)) {
+            try {
+                console.log('Sending DELETE request for bike by name:', bikeName);
+                const deleteRes = await fetch(`/api/bikes/name/${encodeURIComponent(bikeName)}`, {
+                    method: 'DELETE'
+                });
+                
+                console.log('Response status:', deleteRes.status);
+                console.log('Response ok:', deleteRes.ok);
+                
+                if (deleteRes.ok) {
+                    alert('Bike deleted successfully!');
+                    loadInventory(); // Reload inventory list
+                } else {
+                    let errorText;
+                    try {
+                        const error = await deleteRes.json();
+                        console.log('Error response:', error);
+                        errorText = 'Failed to delete bike: ' + (error.error || 'Unknown error');
+                    } catch (parseError) {
+                        console.log('Failed to parse error response:', parseError);
+                        errorText = await deleteRes.text();
+                        console.log('Response text:', errorText);
+                        errorText = 'Failed to delete bike: Server error (invalid response)';
+                    }
+                    alert(errorText);
+                }
+            } catch (error) {
+                console.error('Error deleting bike:', error);
+                alert('Failed to delete bike: ' + error.message);
+            }
+        }
+    }
+
+    // Function to delete a bike (kept for backward compatibility)
+    async function deleteBike(index, bikeName) {
+        console.log('Attempting to delete bike at index:', index, 'Name:', bikeName);
+        
+        // Get current bikes to check if index is valid
+        const res = await fetch('/api/bikes');
+        const bikes = await res.json();
+        console.log('Current bikes count:', bikes.length);
+        
+        if (index < 0 || index >= bikes.length) {
+            alert('Invalid bike index. Please refresh the page and try again.');
+            return;
+        }
+        
+        // Prompt for admin password
+        const password = prompt('Enter admin password to delete this bike:');
+        if (!password) return; // User cancelled
+        
+        if (password !== 'admin123') {
+            alert('Incorrect password. Only owner can delete bikes.');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to delete "${bikeName}"? This action cannot be undone.`)) {
+            try {
+                console.log('Sending DELETE request to:', `/api/bikes/${index}`);
+                const deleteRes = await fetch(`/api/bikes/${index}`, {
+                    method: 'DELETE'
+                });
+                
+                console.log('Response status:', deleteRes.status);
+                console.log('Response ok:', deleteRes.ok);
+                
+                if (deleteRes.ok) {
+                    alert('Bike deleted successfully!');
+                    loadInventory(); // Reload inventory list
+                } else {
+                    let errorText;
+                    try {
+                        const error = await deleteRes.json();
+                        console.log('Error response:', error);
+                        errorText = 'Failed to delete bike: ' + (error.error || 'Unknown error');
+                    } catch (parseError) {
+                        console.log('Failed to parse error response:', parseError);
+                        errorText = await deleteRes.text();
+                        console.log('Response text:', errorText);
+                        errorText = 'Failed to delete bike: Server error (invalid response)';
+                    }
+                    alert(errorText);
+                }
+            } catch (error) {
+                console.error('Error deleting bike:', error);
+                alert('Failed to delete bike: ' + error.message);
+            }
+        }
+    }
+
+    // Image preview functionality
+    document.getElementById('imageFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const preview = document.getElementById('imagePreview');
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `
+                    <div class="mt-2">
+                        <img src="${e.target.result}" alt="Preview" class="w-full h-48 object-cover rounded-lg border-2 border-gray-300">
+                        <p class="text-sm text-gray-600 mt-1">Image selected: ${file.name}</p>
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            preview.innerHTML = '';
+        }
+    });
+
+    document.getElementById('addBikeForm').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        const imageFile = document.getElementById('imageFile').files[0];
+        const imageUrl = document.getElementById('image').value;
+        
+        // Validation
+        if (!document.getElementById('name').value || 
+            !document.getElementById('price').value || 
+            !document.getElementById('desc').value) {
+            alert('Please fill in all fields');
+            return;
+        }
+        
+        if (!imageFile && !imageUrl) {
+            alert('Please select an image file or provide an image URL');
+            return;
+        }
+
+        let finalImageUrl = imageUrl;
+        
+        // If file is selected, upload it first
+        if (imageFile) {
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            
+            try {
+                const uploadRes = await fetch('/api/upload-image', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (uploadRes.ok) {
+                    const uploadData = await uploadRes.json();
+                    finalImageUrl = uploadData.imageUrl;
+                } else {
+                    throw new Error('Image upload failed');
+                }
+            } catch (error) {
+                alert('Failed to upload image: ' + error.message);
+                return;
+            }
+        }
+
+        const bikeData = {
+            name: document.getElementById('name').value,
+            price: document.getElementById('price').value,
+            image: finalImageUrl,
+            desc: document.getElementById('desc').value
+        };
+
+        try {
+            console.log('Sending bike data:', bikeData);
+            const res = await fetch('/api/add-bike', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bikeData)
+            });
+
+            console.log('Response status:', res.status);
+            console.log('Response ok:', res.ok);
+
+            if (res.ok) {
+                alert('Bike added successfully!');
+                // Clear form
+                document.getElementById('addBikeForm').reset();
+                document.getElementById('imagePreview').innerHTML = '';
+                // Reload inventory
+                loadInventory();
+            } else {
+                const errorData = await res.json();
+                console.log('Error data:', errorData);
+                alert('Failed to add bike: ' + (errorData.error || res.statusText || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error adding bike:', error);
+            alert('Failed to add bike: ' + error.message);
+        }
+    };
+
+    // Load inventory when page loads
+    loadInventory();
+    </script>
+</body>
+</html>

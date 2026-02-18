@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel | Bike Hub 🚴‍♂️</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚴</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50">
+    <script>
+        // Password protection
+        const password = prompt("Enter Admin Password:");
+        if (password !== "SecretBike123!") {
+            window.location.href = "index.html"; // Redirect to shop if wrong
+        }
+    </script>
+    
+    <nav class="p-6 bg-white shadow flex justify-between items-center">
+        <h1 class="text-2xl font-black italic">BIKE HUB ADMIN</h1>
+        <a href="index.html" class="text-blue-600">View Shop</a>
+    </nav>
+
+    <div class="max-w-6xl mx-auto p-6 grid md:grid-cols-2 gap-8">
+        
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">Add New Bike</h2>
+            <form id="addBikeForm" class="space-y-3">
+                <input type="text" id="name" placeholder="Bike Name" class="w-full p-2 border rounded" required>
+                <input type="number" id="price" placeholder="Price (USD)" class="w-full p-2 border rounded" required>
+                <input type="text" id="image" placeholder="Image URL" class="w-full p-2 border rounded" required>
+                <textarea id="desc" placeholder="Description" class="w-full p-2 border rounded" rows="3" required></textarea>
+                <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Add Bike</button>
+            </form>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">Current Inventory</h2>
+            <div id="inventory-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        async function loadInventory() {
+            const res = await fetch('/api/bikes');
+            const bikes = await res.json();
+            const list = document.getElementById('inventory-list');
+            
+            if (bikes.length === 0) {
+                list.innerHTML = '<p class="text-gray-500">No bikes in inventory</p>';
+                return;
+            }
+            
+            list.innerHTML = bikes.map((bike, index) => `
+                <div class="flex justify-between items-center border-b pb-2 hover:bg-gray-50 p-2 rounded">
+                    <div class="flex-1">
+                        <div class="font-semibold">${bike.name}</div>
+                        <div class="text-sm text-gray-600">$${bike.price}</div>
+                        <div class="text-xs text-gray-500">${bike.desc.substring(0, 50)}${bike.desc.length > 50 ? '...' : ''}</div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editBikePrice(${index}, '${bike.name.replace(/'/g, "\\'").replace(/"/g, '\\"')}', ${bike.price})" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                            Edit Price
+                        </button>
+                        <button onclick="deleteBike(${index}, '${bike.name.replace(/'/g, "\\'").replace(/"/g, '\\"')}')" class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function editBikePrice(index, bikeName, currentPrice) {
+            const newPrice = prompt(`Edit price for "${bikeName}":`, currentPrice);
+            
+            if (newPrice === null || newPrice === '') {
+                return; // User cancelled
+            }
+            
+            const price = parseFloat(newPrice);
+            if (isNaN(price) || price <= 0) {
+                alert('Please enter a valid price');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/bikes/${index}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ price })
+                });
+                
+                if (res.ok) {
+                    const result = await res.json();
+                    console.log('Price updated:', result);
+                    loadInventory();
+                } else {
+                    const error = await res.json();
+                    alert('Failed to update price: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error updating price:', error);
+                alert('Failed to update price: ' + error.message);
+            }
+        }
+        
+        async function deleteBike(index, bikeName) {
+            if (!confirm(`Are you sure you want to delete "${bikeName}"?`)) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/bikes/${index}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.ok) {
+                    const result = await res.json();
+                    console.log('Bike deleted:', result);
+                    loadInventory();
+                } else {
+                    const error = await res.json();
+                    alert('Failed to delete bike: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error deleting bike:', error);
+                alert('Failed to delete bike: ' + error.message);
+            }
+        }
+        
+        // Handle form submission
+        document.getElementById('addBikeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value;
+            const price = document.getElementById('price').value;
+            const image = document.getElementById('image').value;
+            const desc = document.getElementById('desc').value;
+            
+            if (!name || !price || !image || !desc) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/add-bike', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, price, image, desc })
+                });
+                
+                if (res.ok) {
+                    const result = await res.json();
+                    console.log('Bike added:', result);
+                    alert('Bike added successfully!');
+                    document.getElementById('addBikeForm').reset();
+                    loadInventory();
+                } else {
+                    const error = await res.json();
+                    alert('Failed to add bike: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error adding bike:', error);
+                alert('Failed to add bike: ' + error.message);
+            }
+        });
+        
+        // Load inventory on page load
+        loadInventory();
+    </script>
+</body>
+</html>
