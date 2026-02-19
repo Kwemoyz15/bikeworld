@@ -2,17 +2,20 @@ const express = require('express');
 const axios = require('axios');
 const path = require('path');
 const multer = require('multer');
+const mongoose = require('mongoose');
 const fs = require('fs');
 const app = express();
 
-// M-Pesa credentials (replace with your actual credentials)
-const consumer_key = 'your_consumer_key';
-const consumer_secret = 'your_consumer_secret';
-const businessShortCode = "174379";
-const passkey = 'your_passkey';
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/bikeworld');
 
-// Temporary database for bike inventory
-let bikeInventory = [];
+// Mongoose Bike model
+const Bike = mongoose.model('Bike', {
+    name: String,
+    price: Number,
+    desc: String,
+    image: String
+});
 
 // Configure multer for file uploads
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -109,18 +112,18 @@ app.post('/api/mpesa-pay', async (req, res) => {
 });
 
 // Route to add a bike
-app.post('/api/add-bike', (req, res) => {
+app.post('/api/add-bike', upload.single('image'), async (req, res) => {
     try {
         console.log('Received bike data:', req.body);
-        const newBike = req.body;
         
-        // Validation
-        if (!newBike.name || !newBike.price || !newBike.image || !newBike.desc) {
-            return res.status(400).json({ error: 'All fields are required' });
-        }
+        const newBike = new Bike({
+            name: req.body.name,
+            price: req.body.price,
+            desc: req.body.desc,
+            image: req.file.filename
+        });
         
-        bikeInventory.push(newBike);
-        console.log("Current Inventory:", bikeInventory);
+        await newBike.save(); // This saves to MongoDB permanently!
         res.status(201).json({ message: "Bike saved successfully!" });
     } catch (error) {
         console.error('Error adding bike:', error);
@@ -129,27 +132,30 @@ app.post('/api/add-bike', (req, res) => {
 });
 
 // Route for the frontend to GET all bikes
-app.get('/api/bikes', (req, res) => {
-    res.json(bikeInventory);
+app.get('/api/bikes', async (req, res) => {
+    try {
+        const bikes = await Bike.find();
+        res.json(bikes);
+    } catch (error) {
+        console.error('Error fetching bikes:', error);
+        res.status(500).json({ error: 'Server error while fetching bikes' });
+    }
 });
 
 // Route to delete a bike
-app.delete('/api/bikes/:index', (req, res) => {
+app.delete('/api/bikes/:id', async (req, res) => {
     try {
-        const index = parseInt(req.params.index);
-        console.log('Deleting bike at index:', index);
-        console.log('Current inventory:', bikeInventory);
-        console.log('Inventory length:', bikeInventory.length);
+        const id = req.params.id;
+        console.log('Deleting bike with id:', id);
         
-        if (index < 0 || index >= bikeInventory.length) {
-            return res.status(404).json({ error: 'Bike not found', index: index, inventoryLength: bikeInventory.length });
+        const deletedBike = await Bike.findByIdAndDelete(id);
+        
+        if (!deletedBike) {
+            return res.status(404).json({ error: 'Bike not found', id: id });
         }
         
-        const deletedBike = bikeInventory.splice(index, 1);
-        console.log('Deleted bike:', deletedBike[0]);
-        console.log('Current Inventory after deletion:', bikeInventory);
-        
-        res.json({ message: 'Bike deleted successfully', bike: deletedBike[0] });
+        console.log('Deleted bike:', deletedBike);
+        res.json({ message: 'Bike deleted successfully', bike: deletedBike });
     } catch (error) {
         console.error('Error deleting bike:', error);
         res.status(500).json({ error: 'Server error while deleting bike' });
@@ -157,22 +163,19 @@ app.delete('/api/bikes/:index', (req, res) => {
 });
 
 // Route to delete a bike by name
-app.delete('/api/bikes/name/:name', (req, res) => {
+app.delete('/api/bikes/name/:name', async (req, res) => {
     try {
         const bikeName = decodeURIComponent(req.params.name);
         console.log('Deleting bike by name:', bikeName);
         
-        const bikeIndex = bikeInventory.findIndex(bike => bike.name === bikeName);
+        const deletedBike = await Bike.findOneAndDelete({ name: bikeName });
         
-        if (bikeIndex === -1) {
+        if (!deletedBike) {
             return res.status(404).json({ error: 'Bike not found' });
         }
         
-        const deletedBike = bikeInventory.splice(bikeIndex, 1);
-        console.log('Deleted bike:', deletedBike[0]);
-        console.log('Current Inventory:', bikeInventory);
-        
-        res.json({ message: 'Bike deleted successfully', bike: deletedBike[0] });
+        console.log('Deleted bike:', deletedBike);
+        res.json({ message: 'Bike deleted successfully', bike: deletedBike });
     } catch (error) {
         console.error('Error deleting bike:', error);
         res.status(500).json({ error: 'Server error while deleting bike' });
